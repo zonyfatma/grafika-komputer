@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Wireframe vs Hidden Surface</title>
+  <style>
+    body {
+      background-color: #222;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+    }
+
+    .container {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 40px;
+    }
+
+    canvas {
+      background-color: #111;
+      border: 1px solid white;
+    }
+
+    h2 {
+      margin-top: 20px;
+    }
+
+    p {
+      font-size: 14px;
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <h2>3D Wireframe (Gambar 1) dan Hidden Surface (Gambar 2)</h2>
+  <p>Gunakan W/S: rotasi X, A/D: rotasi Y</p>
+
+  <div class="container">
+    <div>
+      <p>Gambar 1 (Semua sisi terlihat)</p>
+      <canvas id="canvas1" width="300" height="300"></canvas>
+    </div>
+    <div>
+      <p>Gambar 2 (Sisi tertutup disembunyikan)</p>
+      <canvas id="canvas2" width="300" height="300"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const canvas1 = document.getElementById("canvas1");
+    const ctx1 = canvas1.getContext("2d");
+    const canvas2 = document.getElementById("canvas2");
+    const ctx2 = canvas2.getContext("2d");
+
+    const width = canvas1.width;
+    const height = canvas1.height;
+
+    const scaleFactor = 0.5;
+    const vertices = [
+      [-0.8, -0.8, -1.5], [1.2, -0.8, -1.5], [1.2, 1.0, -1.5], [-0.8, 1.0, -1.5],
+      [-0.8, -0.8, 1.5], [1.2, -0.8, 1.5], [1.2, 1.0, 1.5], [-0.8, 1.0, 1.5]
+    ].map(v => v.map(n => n * scaleFactor));
+
+    const faces = [
+      [0, 1, 2, 3],
+      [4, 5, 6, 7],
+      [0, 1, 5, 4],
+      [2, 3, 7, 6],
+      [1, 2, 6, 5],
+      [0, 3, 7, 4]
+    ];
+
+    let angleX = 0.9;
+    let angleY = 0.6;
+
+    function rotateX(p, angle) {
+      const [x, y, z] = p;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      return [x, y * cos - z * sin, y * sin + z * cos];
+    }
+
+    function rotateY(p, angle) {
+      const [x, y, z] = p;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      return [x * cos + z * sin, y, -x * sin + z * cos];
+    }
+
+    function project(p) {
+      const scale = 120;
+      const [x, y] = p;
+      return [x * scale + width / 2, -y * scale + height / 2];
+    }
+
+    function getNormal(v0, v1, v2) {
+      const a = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+      const b = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+      return [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0]
+      ];
+    }
+
+    function dot(a, b) {
+      return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+    }
+
+    function transform(p) {
+      return rotateY(rotateX(p, angleX), angleY);
+    }
+
+    function draw(ctx, hidden) {
+      ctx.clearRect(0, 0, width, height);
+      const tVerts = vertices.map(transform);
+      const projVerts = tVerts.map(v => project([v[0], v[1]]));
+
+      if (hidden) {
+        const cameraDir = [0, 0, -1];
+        for (const face of faces) {
+          const [a, b, c, d] = face;
+          const normal = getNormal(tVerts[a], tVerts[b], tVerts[c]);
+          if (dot(normal, cameraDir) < 0) continue;
+          ctx.beginPath();
+          ctx.moveTo(...projVerts[a]);
+          ctx.lineTo(...projVerts[b]);
+          ctx.lineTo(...projVerts[c]);
+          ctx.lineTo(...projVerts[d]);
+          ctx.closePath();
+          ctx.strokeStyle = "white";
+          ctx.stroke();
+        }
+      } else {
+        for (const face of faces) {
+          const [a, b, c, d] = face;
+          ctx.beginPath();
+          ctx.moveTo(...projVerts[a]);
+          ctx.lineTo(...projVerts[b]);
+          ctx.lineTo(...projVerts[c]);
+          ctx.lineTo(...projVerts[d]);
+          ctx.closePath();
+          ctx.strokeStyle = "white";
+          ctx.stroke();
+        }
+      }
+    }
+
+    document.addEventListener("keydown", e => {
+      switch (e.key) {
+        case "w": angleX -= 0.1; break;
+        case "s": angleX += 0.1; break;
+        case "a": angleY -= 0.1; break;
+        case "d": angleY += 0.1; break;
+      }
+      draw(ctx1, false);
+      draw(ctx2, true);
+    });
+
+    draw(ctx1, false);
+    draw(ctx2, true);
+  </script>
+</body>
+</html>
